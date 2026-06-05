@@ -1,0 +1,186 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob:;">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Macro Desktop</title>
+    <style>
+      body { margin: 0; font-family: Arial, sans-serif; background:#0b1220; color:#e6edf3; }
+      .app { display:flex; height:100vh; }
+      .left { width: 320px; border-right: 1px solid rgba(255,255,255,0.08); padding:16px; box-sizing:border-box; overflow-y:auto; }
+      .right { flex:1; padding:16px; box-sizing:border-box; }
+      .card { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius:12px; padding:12px; margin-bottom:12px; }
+      .row { display:flex; gap:10px; align-items:center; margin:8px 0; }
+      button { background:#238636; border:none; color:white; padding:10px 12px; border-radius:10px; cursor:pointer; }
+      button.secondary { background:#30363d; }
+      button.danger { background:#da3633; }
+      button:disabled { opacity:0.6; cursor:not-allowed; }
+      input, select { background:#0f172a; border:1px solid rgba(255,255,255,0.12); color:#e6edf3; padding:8px; border-radius:10px; }
+      table { width:100%; border-collapse:collapse; }
+      th, td { padding:10px 8px; border-bottom:1px solid rgba(255,255,255,0.08); font-size:13px; }
+      th { text-align:left; color:#bcd3ff; }
+      .actions-cell { display:flex; gap:8px; }
+      .pill { padding:4px 8px; border:1px solid rgba(255,255,255,0.12); border-radius:999px; font-size:12px; }
+      .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+      .small { font-size:12px; opacity:0.9; }
+      .grid-2 { display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <div class="left">
+        <div class="card">
+          <div class="row" style="justify-content:space-between">
+            <div><b>Macroliste</b></div>
+            <div class="small mono" id="status">Prêt</div>
+          </div>
+          <div id="mouseCoords" class="mono small" style="display:none; text-align:center; padding:4px 8px; background:rgba(188,211,255,0.08); border-radius:8px; color:#bcd3ff; letter-spacing:0.05em;"></div>
+          <div class="row">
+            <input id="macroName" placeholder="Nom de la macro" style="flex:1" />
+          </div>
+          <div class="row">
+            <button id="btnCreate" class="secondary" style="flex:1">Créer</button>
+          </div>
+          <div class="row">
+            <select id="macroSelect" style="width:100%"></select>
+          </div>
+          <div class="row">
+            <button id="btnDelete" class="danger" style="flex:1">Supprimer</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <b>Enregistrement</b>
+          <div class="small" style="margin-top:6px; line-height:1.4">
+            Souris + clavier capturés globalement. Sur macOS : autoriser l'accès dans Réglages → Confidentialité → Accessibilité.
+          </div>
+          <div class="row" style="margin-top:10px">
+            <button id="btnRecordStart" style="flex:1">Démarrer</button>
+          </div>
+          <div class="row">
+            <button id="btnRecordStop" disabled style="flex:1" class="secondary">Stop</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <b>Ajouter une action</b>
+          <div class="row" style="margin-top:10px">
+            <select id="actionType" style="flex:1">
+              <option value="mouseMove">🖱  Déplacer la souris</option>
+              <option value="mouseClick">🖱  Cliquer</option>
+              <option value="keyTap">⌨  Appuyer une touche</option>
+              <option value="typeText">⌨  Taper du texte</option>
+            </select>
+          </div>
+
+          <div id="fields-mouseMove" style="margin-top:8px">
+            <div class="row"><span class="small" style="width:60px;flex-shrink:0">X</span><input id="af-x" type="number" value="0" min="0" style="flex:1"/></div>
+            <div class="row"><span class="small" style="width:60px;flex-shrink:0">Y</span><input id="af-y" type="number" value="0" min="0" style="flex:1"/></div>
+          </div>
+
+          <div id="fields-mouseClick" style="display:none;margin-top:8px">
+            <div class="row">
+              <span class="small" style="width:60px;flex-shrink:0">Bouton</span>
+              <select id="af-button" style="flex:1">
+                <option value="left">Gauche</option>
+                <option value="right">Droite</option>
+                <option value="middle">Milieu</option>
+              </select>
+            </div>
+            <div class="row" style="gap:8px">
+              <input id="af-double" type="checkbox" style="width:auto;margin:0"/>
+              <label for="af-double" class="small">Double clic</label>
+            </div>
+          </div>
+
+          <div id="fields-keyTap" style="display:none;margin-top:8px">
+            <div class="row">
+              <span class="small" style="width:60px;flex-shrink:0">Touche</span>
+              <input id="af-key" placeholder="a, enter, f5, left, tab, space…" style="flex:1"/>
+            </div>
+            <div class="row" style="gap:16px;flex-wrap:wrap;margin-top:4px">
+              <label class="small" style="display:flex;gap:6px;align-items:center"><input id="af-ctrl"  type="checkbox" style="width:auto;margin:0"> Ctrl</label>
+              <label class="small" style="display:flex;gap:6px;align-items:center"><input id="af-shift" type="checkbox" style="width:auto;margin:0"> Shift</label>
+              <label class="small" style="display:flex;gap:6px;align-items:center"><input id="af-alt"   type="checkbox" style="width:auto;margin:0"> Alt</label>
+              <label class="small" style="display:flex;gap:6px;align-items:center"><input id="af-cmd"   type="checkbox" style="width:auto;margin:0"> Cmd</label>
+            </div>
+          </div>
+
+          <div id="fields-typeText" style="display:none;margin-top:8px">
+            <div class="row">
+              <span class="small" style="width:60px;flex-shrink:0">Texte</span>
+              <input id="af-text" placeholder="Texte à taper…" style="flex:1"/>
+            </div>
+          </div>
+
+          <div style="margin-top:10px">
+            <div class="small" style="margin-bottom:6px">Délai avant</div>
+            <div class="row" style="gap:4px;flex-wrap:wrap;align-items:center">
+              <input id="actionDelay-h"  type="number" value="0"   min="0"                style="width:40px;padding:6px 4px"/> <span class="small">h</span>
+              <input id="actionDelay-m"  type="number" value="0"   min="0" max="59"       style="width:40px;padding:6px 4px"/> <span class="small">m</span>
+              <input id="actionDelay-s"  type="number" value="0"   min="0" max="59"       style="width:40px;padding:6px 4px"/> <span class="small">s</span>
+              <input id="actionDelay-ms" type="number" value="200" min="0" max="999"      style="width:44px;padding:6px 4px"/> <span class="small">ms</span>
+            </div>
+            <div class="row" style="margin-top:8px">
+              <button id="btnAddAction" style="flex:1">Ajouter</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <b>Raccourci d'exécution</b>
+          <div class="small" style="margin-top:6px;line-height:1.4">Lance / arrête la macro sélectionnée.</div>
+          <div class="row" style="margin-top:10px;gap:8px">
+            <div id="shortcutDisplay" class="mono pill" style="flex:1;padding:8px 12px;text-align:center;font-size:14px">Aucun</div>
+            <button id="btnShortcutSet" class="secondary">Changer</button>
+            <button id="btnShortcutClear" class="danger" style="padding:10px 10px">✕</button>
+          </div>
+          <div id="shortcutHint" class="small" style="display:none;margin-top:6px;color:#bcd3ff;text-align:center">Appuie sur une touche… (Échap pour annuler)</div>
+        </div>
+
+        <div class="card">
+          <b>Raccourci d'enregistrement</b>
+          <div class="small" style="margin-top:6px;line-height:1.4">Démarre / arrête l'enregistrement depuis n'importe quelle app. Appuie une fois pour commencer, une autre fois pour sauvegarder.</div>
+          <div class="row" style="margin-top:10px;gap:8px">
+            <div id="shortcutRecordDisplay" class="mono pill" style="flex:1;padding:8px 12px;text-align:center;font-size:14px">Aucun</div>
+            <button id="btnShortcutRecordSet" class="secondary">Changer</button>
+            <button id="btnShortcutRecordClear" class="danger" style="padding:10px 10px">✕</button>
+          </div>
+          <div id="shortcutRecordHint" class="small" style="display:none;margin-top:6px;color:#bcd3ff;text-align:center">Appuie sur une touche… (Échap pour annuler)</div>
+        </div>
+      </div>
+
+      <div class="right">
+        <div class="card">
+          <div class="row" style="justify-content:space-between">
+            <b>Actions</b>
+            <div class="row" style="gap:8px">
+              <button id="btnPlay" class="secondary">Rejouer</button>
+              <button id="btnExport" class="secondary">Export JSON</button>
+              <button id="btnImport" class="secondary">Import JSON</button>
+            </div>
+          </div>
+          <div class="small" style="margin-top:8px" id="macroMeta"></div>
+          <div style="overflow:auto; max-height: 520px; margin-top:10px">
+            <table>
+              <thead>
+                <tr>
+                  <th style="width:70px">#</th>
+                  <th style="min-width:180px">Délai</th>
+                  <th>Type</th>
+                  <th>Paramètres</th>
+                  <th style="width:220px">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="actionsTbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="./renderer.js"></script>
+  </body>
+</html>
+-

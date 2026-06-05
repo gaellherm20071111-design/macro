@@ -1,0 +1,15 @@
+appId: com.example.macro
+productName: Macro Desktop
+files:
+  - "**/*"
+win:
+  target:
+    - nsis
+  icon: null
+mac:
+  target:
+    - dmg
+  icon: null
+  category: public.app-category.utilities
+  entitlements: null
+  hardenedRuntime: false
